@@ -154,7 +154,9 @@ export async function decryptWithAES(encryptedBase64: string, ivBase64: string, 
 export async function encryptAESKeyForUser(aesKey: CryptoKey, userPublicKey: CryptoKey) {
   const exported = await window.crypto.subtle.exportKey("raw", aesKey);
   const encrypted = await window.crypto.subtle.encrypt(
-    { name: "RSA-OAEP" },
+    { 
+      name: "RSA-OAEP"
+    },
     userPublicKey,
     exported
   );
@@ -168,7 +170,9 @@ export async function decryptAESKeyWithUserPrivateKey(encryptedAESKeyBase64: str
     bytes[i] = binaryString.charCodeAt(i);
   }
   const decrypted = await window.crypto.subtle.decrypt(
-    { name: "RSA-OAEP" },
+    { 
+      name: "RSA-OAEP"
+    },
     userPrivateKey,
     bytes
   );

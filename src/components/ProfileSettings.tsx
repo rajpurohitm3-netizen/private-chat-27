@@ -640,20 +640,41 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
                 <Switch checked={ghostMode} onCheckedChange={setGhostMode} />
               </div>
 
-              <div 
-                className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                onClick={() => setActiveSection(activeSection === 'password' ? null : 'password')}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-red-500/10 rounded-xl">
-                    <Key className="w-5 h-5 text-red-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-black text-white uppercase">Change Password</p>
-                    <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">Requires admin approval</p>
+                <div 
+                  className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                  onClick={() => setActiveSection(activeSection === 'password' ? null : 'password')}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-500/10 rounded-xl">
+                      <Key className="w-5 h-5 text-red-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-white uppercase">Change Password</p>
+                      <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">Requires admin approval</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                <div 
+                  className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors border-t border-white/5"
+                  onClick={async () => {
+                    if (confirm("This will regenerate your encryption keys. You will NOT be able to read old messages, but it will fix decryption errors for NEW messages. Continue?")) {
+                      localStorage.removeItem(`priv_key_${profile.id}`);
+                      toast.info("Keys cleared. Please refresh the page to regenerate.");
+                      window.location.reload();
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-cyan-500/10 rounded-xl">
+                      <Shield className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-white uppercase">Repair Encryption</p>
+                      <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">Fix "Decryption Error" for new messages</p>
+                    </div>
+                  </div>
+                </div>
 
               <AnimatePresence>
                 {activeSection === 'password' && (

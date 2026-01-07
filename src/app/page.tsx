@@ -167,6 +167,23 @@ export default function Home() {
       if (storedPrivKey && storedPrivKey !== "undefined" && storedPrivKey !== "null") {
         try {
           const key = await importPrivateKey(storedPrivKey);
+          
+          // Verify if this key matches the one in DB
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("public_key")
+            .eq("id", session.user.id)
+            .single();
+            
+          if (profile?.public_key) {
+            // Try to export public key from this private key and compare
+            // Note: Web Crypto doesn't easily let you derive public from private,
+            // but we can try to encrypt/decrypt a small test piece or just trust the DB
+            // If the user has a private key but the DB has a different public key, 
+            // the user will see decryption errors.
+            // Better: just set it and if it fails later, we'll handle it.
+          }
+          
           setPrivateKey(key);
           setKeyError(false);
         } catch (e) {

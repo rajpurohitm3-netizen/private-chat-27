@@ -119,52 +119,69 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
 
   useEffect(() => {
     async function initMyPublicKey() {
-      const { data } = await supabase.from("profiles").select("public_key").eq("id", session.user.id).single();
-      if (data?.public_key) {
-        const key = await importPublicKey(data.public_key);
-        setMyPublicKey(key);
+      try {
+        const { data, error } = await supabase.from("profiles").select("public_key").eq("id", session.user.id).single();
+        if (error) throw error;
+        if (data?.public_key) {
+          const key = await importPublicKey(data.public_key);
+          setMyPublicKey(key);
+        } else {
+          console.warn("Public key not found in DB for user:", session.user.id);
+          toast.error("Encryption profile incomplete. Please refresh or check settings.");
+        }
+      } catch (err) {
+        console.error("Failed to init my public key:", err);
       }
     }
     initMyPublicKey();
   }, [session.user.id]);
 
   const decryptMessageContent = async (msg: any) => {
+    if (!privateKey) return "[System Error: No Private Key]";
+    
     try {
-      // Check if we have the new column format
       const iv = msg.iv;
       const senderKey = msg.sender_key;
       const receiverKey = msg.receiver_key;
       const encryptedContent = msg.encrypted_content;
 
+      // New column-based format
       if (iv && encryptedContent && (senderKey || receiverKey)) {
-        // Use column-based encryption
-        const myEncryptedAESKey = msg.sender_id === session.user.id ? senderKey : receiverKey;
-        if (!myEncryptedAESKey) return "[Encryption Mismatch]";
+        const isMeSender = msg.sender_id === session.user.id;
+        const myEncryptedAESKey = isMeSender ? senderKey : receiverKey;
         
-        const aesKey = await decryptAESKeyWithUserPrivateKey(myEncryptedAESKey, privateKey);
-        return await decryptWithAES(encryptedContent, iv, aesKey);
+        if (!myEncryptedAESKey) {
+          return "[Encryption Key Missing]";
+        }
+        
+        try {
+          const aesKey = await decryptAESKeyWithUserPrivateKey(myEncryptedAESKey, privateKey);
+          return await decryptWithAES(encryptedContent, iv, aesKey);
+        } catch (decryptErr) {
+          console.error(`Decryption failed for msg ${msg.id}:`, decryptErr);
+          return "[Decryption Error]";
+        }
       }
 
-      // Fallback to legacy JSON format
-      if (!msg.encrypted_content) return msg.content || "";
+      // Legacy support or plain text
+      if (!encryptedContent) return msg.content || "";
       
-      let packet;
       try {
-        packet = JSON.parse(msg.encrypted_content);
+        const packet = JSON.parse(encryptedContent);
+        if (packet.iv && packet.content && packet.keys) {
+          const encryptedAESKey = packet.keys[session.user.id];
+          if (!encryptedAESKey) return "[Encrypted - Key Not Found]";
+          const aesKey = await decryptAESKeyWithUserPrivateKey(encryptedAESKey, privateKey);
+          return await decryptWithAES(packet.content, packet.iv, aesKey);
+        }
       } catch (e) {
-        return msg.encrypted_content; // Plain text
+        // Not JSON
       }
 
-      if (!packet.iv || !packet.content || !packet.keys) return msg.encrypted_content;
-      
-      const encryptedAESKey = packet.keys[session.user.id];
-      if (!encryptedAESKey) return "[Encrypted - Key Missing]";
-      
-      const aesKey = await decryptAESKeyWithUserPrivateKey(encryptedAESKey, privateKey);
-      return await decryptWithAES(packet.content, packet.iv, aesKey);
+      return encryptedContent;
     } catch (e) {
-      console.error("Decryption failed:", e);
-      return "[Decryption Error]";
+      console.error("Critical decryption failure:", e);
+      return "[System Decryption Error]";
     }
   };
 
